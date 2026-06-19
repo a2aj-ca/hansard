@@ -1,0 +1,35 @@
+.venv/
+__pycache__/
+.ipynb_checkpoints/
+*.pyc
+.DS_Store
+.env
+LOGS/
+*.log
+
+# data / db dumps
+dump/
+data/
+exports/
+*.csv
+*.json
+*.jsonl
+*.pkl
+*.sqlite
+*.db
+*.bson
+*.zip
+
+#code agent
+.claude/
+CLAUDE.local.md
+CLAUDE.md
+.claude.json
+.mcp.json
+
+a2aj_hansards/bin/
+a2aj_hansards/include/
+a2aj_hansards/lib/
+a2aj_hansards/pyvenv.cfg
+a2aj_hansards/__pycache__/
+a2aj_hansards/LOGS/
