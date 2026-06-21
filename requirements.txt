@@ -2,3 +2,7 @@ requests
 pymongo
 beautifulsoup4
 python-dotenv
+
+# export / publishing layer (pipeline.export)
+pyarrow
+huggingface_hub

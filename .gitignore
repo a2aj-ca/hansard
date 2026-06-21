@@ -11,6 +11,9 @@ LOGS/
 dump/
 data/
 exports/
+# Parquet export + generated HF data card (too large for the code repo)
+hf_export/
+*.parquet
 *.csv
 *.json
 *.jsonl

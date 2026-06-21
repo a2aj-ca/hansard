@@ -1,0 +1,10 @@
+# Example crontab entry for the weekly Hansard update.
+# Install with `crontab -e` (or `crontab scripts/crontab.example` to replace).
+#
+# Runs every Monday at 03:30 server time. The wrapper handles venv, locking,
+# logging, and .env loading; secrets live in .env, never here.
+#
+# Note: cron has a minimal environment and no SSH agent — the deploy key must be
+# passphraseless and referenced via GIT_SSH_COMMAND in .env. See docs/publishing.md.
+
+30 3 * * 1 /home/sr/a2aj-hansard/scripts/weekly_update.sh
