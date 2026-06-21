@@ -14,7 +14,9 @@ The parsed corpus is published as the Hugging Face dataset [`a2aj/hansard`](http
 | Ontario — Legislative Assembly | 1,347,812 | 4,474 | 1974-03-05 → 2026-06-02 | en |
 | **Total** | **1,347,812** | | | |
 
-Contact: a2aj@yorku.ca
+Example notebook for accessing the data: [`notebooks/accessing_the_data.ipynb`](notebooks/accessing_the_data.ipynb).
+
+A project of [Access to Algorithmic Justice (A2AJ)](https://a2aj.ca). Contact: a2aj@yorku.ca
 <!-- COVERAGE:END -->
 
 A multi-jurisdiction pipeline that downloads parliamentary Hansard transcripts,
