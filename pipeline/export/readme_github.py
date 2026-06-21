@@ -7,12 +7,14 @@ from typing import Dict, Optional
 from ._render import coverage_table, last_updated_line
 from ._stats import corpus_stats
 from .config import (
+    A2AJ_URL,
     ALPHA_NOTICE,
     CONTACT_EMAIL,
     COVERAGE_END,
     COVERAGE_START,
     HF_DATASET_REPO,
     HF_DATASET_URL,
+    NOTEBOOK_PATH,
     REPO_README,
 )
 
@@ -38,6 +40,9 @@ def _block(stats: Dict) -> str:
             "",
             coverage_table(stats),
             "",
+            f"Example notebook for accessing the data: [`{NOTEBOOK_PATH}`]({NOTEBOOK_PATH}).",
+            "",
+            f"A project of [Access to Algorithmic Justice (A2AJ)]({A2AJ_URL}). "
             f"Contact: {CONTACT_EMAIL}",
             COVERAGE_END,
         ]

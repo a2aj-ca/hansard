@@ -47,6 +47,14 @@ ALPHA_NOTICE = (
 # Contact, used on both READMEs.
 CONTACT_EMAIL = "a2aj@yorku.ca"
 
+# Links used on both READMEs.
+A2AJ_URL = "https://a2aj.ca"
+GITHUB_REPO_URL = os.getenv("GITHUB_REPO_URL", "https://github.com/a2aj-ca/hansard")
+NOTEBOOK_PATH = "notebooks/accessing_the_data.ipynb"
+# Absolute URL for the HF card (relative links don't resolve there); the GitHub
+# README uses the relative path so it works in-repo.
+NOTEBOOK_URL = f"{GITHUB_REPO_URL}/blob/main/{NOTEBOOK_PATH}"
+
 # Human-friendly jurisdiction display names (falls back to the raw key).
 JURISDICTION_LABELS = {
     "ontario": "Ontario — Legislative Assembly",

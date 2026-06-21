@@ -7,6 +7,7 @@ from typing import Dict, Optional
 from ._render import coverage_table
 from ._stats import corpus_stats
 from .config import (
+    A2AJ_URL,
     ALPHA_NOTICE,
     CONTACT_EMAIL,
     HF_DATASET_REPO,
@@ -14,6 +15,7 @@ from .config import (
     HF_README,
     EXPORT_DIR,
     JURISDICTION_LABELS,
+    NOTEBOOK_URL,
 )
 
 logger = logging.getLogger(__name__)
@@ -149,6 +151,8 @@ def _loading_section(stats: Dict) -> str:
             "",
             f'df = pd.read_parquet("hf://datasets/{HF_DATASET_REPO}/{example}/train.parquet")',
             "```",
+            "",
+            f"A worked example notebook is available: [accessing the data]({NOTEBOOK_URL}).",
         ]
     )
 
@@ -180,7 +184,7 @@ def _body(stats: Dict) -> str:
         "",
         f"Last updated: {stats['last_updated']}",
         "",
-        "Maintainer: Access to Algorithmic Justice (A2AJ)",
+        f"Maintainer: [Access to Algorithmic Justice (A2AJ)]({A2AJ_URL})",
         "",
         "## Dataset Summary",
         "",
