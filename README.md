@@ -5,7 +5,7 @@
 
 > **Alpha — work in progress.** This is an alpha version of a work in progress academic research project. It is likely to undergo significant revisions.
 
-_Last updated: 2026-07-12._
+_Last updated: 2026-07-19._
 
 The parsed corpus is published as the Hugging Face dataset [`a2aj/hansard`](https://huggingface.co/datasets/a2aj/hansard), built for computational legal and political research over the parliamentary record — searching for patterns, tracking how debate and policy evolve in light of case law, and assembling evidence of legislative purpose and intent. See the dataset card for fields, access, and licensing.
 
