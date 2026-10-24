@@ -7,6 +7,7 @@ from typing import Optional
 ROW_FIELDS = [
     "ID",
     "Date",
+    "sitting",
     "jurisdiction",
     "chamber",
     "language",
@@ -15,6 +16,9 @@ ROW_FIELDS = [
     "PersonSpeaking",
     "intervention_type",
     "Intervention",
+    "vote_direction",
+    "vote_count",
+    "voters",
     "upstream_license",
 ]
 
