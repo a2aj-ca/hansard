@@ -192,14 +192,12 @@ or a procedural note) and has the following fields:
 - `vote_count` is `None` whenever the count isn't printed on the marker line.
   It is not computed from `len(voters)`, so consumers can tell "not printed"
   from "printed". Use `len(voters)` when you need a number.
-- A combined tally line (`Ayes 52; nays 31.`) ends name collection but isn't
-  parsed for counts. It is not a heading, speaker or procedural line, so it is
-  appended as a continuation of whoever spoke last before the division.
-- A comma-joined paragraph of exactly two surnames ("Arnott, Bailey") is read as
-  one name, because it looks the same as "Last name, first name".
-- A bare paragraph reading just `Aye.` or `Nay.` would be taken for a marker. In
-  practice members' responses come with a label ("Some hon. members: Aye"), which
-  doesn't match.
+- A combined tally line (`Ayes 52; nays 31.`, `Ayes, 46; nays 66.`) ends name collection
+  and becomes its own `procedural` row, but its counts aren't parsed into `vote_count`.
+- A paragraph consisting only of `Aye.` or `Nay.` matches the division-marker
+  pattern and would wrongly start a division. This hasn't come up in practice,
+  because members' spoken responses are printed with a speaker label
+  ("Some hon. members: Aye").
 - Divisions are only recognised in this layout. Votes reported only in prose
   ("the motion was carried on the following division: ...") are not split into
   names.
