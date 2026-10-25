@@ -5,7 +5,7 @@ import re
 from typing import Dict, List, Optional
 from urllib.parse import urljoin
 
-from bs4 import BeautifulSoup, Tag
+from bs4 import BeautifulSoup, Tag, NavigableString
 
 from ..common.http import build_proxies, fetch, sleep
 from ..common.schema import DayPage
@@ -46,8 +46,8 @@ SPEAKER_PLAIN_RE = re.compile(
 # Common procedural openings, used to tell a procedural note apart from the continuation of a speaker's speech.
 PROCEDURAL_START_RE = re.compile(
     r"^(interjections|applause|laughter|prayers|a voice|"
-    r"the House (adjourned|recessed|met)\b|the division bells?|"
-    r"the assembly|the committee|the clerk|"
+    r"the House (adjourned|recessed|met|resumed|divided|is divided|prorogued|observed)\b|the division bells?|"
+    r"the committee (divided|rose)\b|"
     r"motion (agreed to|carried|negatived)|"
     r"the speaker|the acting speaker|"
     r"it being|pursuant to|ordered that)\b",
@@ -62,9 +62,9 @@ DATE_LINE_RE = re.compile(r"^(?:Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day\s+\d{1,2
 # A division opens with a marker paragraph naming one side: the side alone ("Ayes"),
 # or the side with its count attached ("Ayes - 52", "Nays: 31").
 VOTE_MARKER_RE = re.compile(r"^(?P<side>ayes?|nays?|yeas?)\b\W{0,6}(?P<count>\d+)?$", re.I)
-# Some pre-1990s transcripts print both counts together after the names ("Ayes 52; nays 31.").
+# Some pre-1990s transcripts print both counts together after the names ("Ayes 52; nays 31.", sometimes "Ayes, 52;...").
 # Such a line ends the name list. It is not a marker.
-VOTE_TALLY_RE = re.compile(r"^(?:the\s+)?(?:ayes?|yeas?)\s+\d+\s*[;,]", re.I)
+VOTE_TALLY_RE = re.compile(r"^(?:the\s+)?(?:ayes?|yeas?),?\s+\d+\s*[;,]", re.I)
 # A comma-separated part that is only initials ("J. R."), i.e. the tail of "Last name, initials".
 INITIALS_RE = re.compile(r"^(?:[A-Z]\.?\s*)+$")
 
@@ -86,11 +86,12 @@ def _day_url_parts(url: str) -> tuple[Optional[str], Optional[str]]:
     return m.group(1), sitting
 
 
+# check if a paragraph matches a procedural opening or closing, or a vote tally line.
 def _looks_procedural(text: str) -> bool:
     t = clean_text(text)
     if not t:
         return False
-    if PROCEDURAL_START_RE.match(t):
+    if PROCEDURAL_START_RE.match(t) or VOTE_TALLY_RE.match(t):
         return True
     if PROCEDURAL_END_RE.search(t):
         return True
@@ -120,10 +121,13 @@ def _extract_strong_speaker_label(p: Tag) -> Optional[str]:
     if not strong:
         return None
     raw = clean_text(strong.get_text(" ", strip=True))
-    # must look like "Speaker Name:"
-    if not raw.endswith(":"):
-        return None
-    raw = raw[:-1].strip() # remove trailing colon
+    # must look like "Speaker Name:" -- the colon is usually inside the <strong>, but a few pages put it just after: "<strong>The Speaker</strong>:"
+    if raw.endswith(":"):
+        raw = raw[:-1].strip() # remove trailing colon
+    else:
+        after = strong.next_sibling
+        if not (isinstance(after, NavigableString) and after.lstrip().startswith(":")):
+            return None
     return raw or None
 
 # Some day pages have been re-exported by OLA with their <h2>/<h3> headings dropped and section headings survive only as a bold, all-caps paragraph. 
@@ -217,21 +221,20 @@ def _vote_marker(el: Tag) -> Optional[tuple]:
 def _names_from_paragraph(text: str) -> List[str]:
     """Split one paragraph of voters' names.
 
-    Pages either put one name per paragraph or comma-join many names into one paragraph.
-    Splitting on commas unconditionally would tear "Last name, first name" in half,
-    so a paragraph is only treated as a list when it yields more than two comma-separated parts.
+    Pages put one name per paragraph, or join many names with commas or semicolons.
+    A ";" always separates voters ("Peterson; Reed, J.; Riddell"); some comma lists also end with a stray semicolon.
+    Within each ";" piece, a comma separates voters ("Breaugh, Cureatz"), except that a part made only of
+    initials ("J. M.") is the tail of "Last name, initials" and is glued back onto the name before it.
     """
-    parts = [p.strip() for p in text.split(",") if p.strip()]
-    # A single name splits into 2 parts, treat that as one name and return the whole string unsplit
-    if len(parts) <= 2:
-        return [text]
     names: List[str] = []
-    for part in parts:
-        # reattach any part that's just initials (matched by INITIALS_RE) onto the previous name
-        if names and INITIALS_RE.match(part):
-            names[-1] += ", " + part
-        else:
-            names.append(part)
+    for chunk in text.split(";"):
+        parts = [p.strip() for p in chunk.split(",") if p.strip()]
+        for i, part in enumerate(parts):
+            # reattach any part that's just initials (matched by INITIALS_RE) onto the previous name
+            if i and INITIALS_RE.match(part):
+                names[-1] += ", " + part
+            else:
+                names.append(part)       
     return names
 
 
@@ -242,6 +245,42 @@ def _clean_voter_name(name: str) -> str:
     if name.endswith(".") and not re.search(r"\b[A-Z]\.$", name):
         name = name[:-1]
     return name.strip()
+
+
+def _collect_table_column_voters(el: Tag) -> Optional[tuple]:
+    """(names, consumed_elements) when the marker at `el` heads a column of a vote table, else None.
+
+    Some 1970s pages lay a division out as a table: a first row of markers ("Ayes" | "Nays"), then the
+    names in the same column below, as a <ul>, one <p> per name, or one name per row.
+    """
+    cell = el.find_parent("td")
+    if cell is None:
+        return None
+    row = cell.find_parent("tr")
+    table = row.find_parent("table")
+    # returns cells of a row 
+    cells_of = lambda tr: [c for c in tr.find_all(["td", "th"]) if c.find_parent("tr") is tr]
+    rows = [tr for tr in table.find_all("tr") if tr.find_parent("table") is table]
+    col = cells_of(row).index(cell)
+    names: List[str] = []
+    consumed: List[Tag] = []
+    for tr in rows[rows.index(row) + 1:]:
+        cells = cells_of(tr)
+        if col >= len(cells):
+            continue
+        below = cells[col]
+        consumed.append(below) 
+        items = below.find_all(["li", "p", "h4"])
+        if not items:
+            text = clean_text(below.get_text(" ", strip=True))
+            names += _names_from_paragraph(text) if text else []
+            continue
+        for item in items:
+            text = clean_text(item.get_text(" ", strip=True))
+            if not text or _vote_marker(item):
+                continue
+            names += [text] if item.name == "li" else _names_from_paragraph(text) 
+    return names, consumed
 
 
 def _collect_division_voters(el: Tag) -> tuple:
@@ -276,6 +315,11 @@ def _collect_division_voters(el: Tag) -> tuple:
         else:
             break
         consumed.append(sib)
+    # in some cases the names may sit in the column below the marker
+    if not names:
+        column = _collect_table_column_voters(el)
+        if column is not None:
+            names, consumed = column
     return [_clean_voter_name(n) for n in names if n], consumed
 
 
@@ -644,6 +688,7 @@ class OntarioHansardAdapter(HansardAdapter):
                         if strong:
                             strong.extract()
                             text = clean_text(el.get_text(" ", strip=True))
+                            text = re.sub(r"^:\s*", "", text)   # colon left behind in case it sat outside the <strong>
                     else:
                         logger.warning("speakerStart detected but speaker not parsed | date=%s | text=%s", date_iso, text[:80],)
                     if text:
