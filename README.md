@@ -5,14 +5,14 @@
 
 > **Alpha — work in progress.** This is an alpha version of a work in progress academic research project. It is likely to undergo significant revisions.
 
-_Last updated: 2026-10-25._
+_Last updated: 2026-10-30._
 
 The parsed corpus is published as the Hugging Face dataset [`a2aj/hansard`](https://huggingface.co/datasets/a2aj/hansard), built for computational legal and political research over the parliamentary record — searching for patterns, tracking how debate and policy evolve in light of case law, and assembling evidence of legislative purpose and intent. See the dataset card for fields, access, and licensing.
 
 | Jurisdiction | Rows | Sitting days | Date range | Languages |
 |---|---:|---:|---|---|
-| Ontario — Legislative Assembly | 1,347,812 | 4,474 | 1974-03-05 → 2026-06-02 | en |
-| **Total** | **1,347,812** | | | |
+| Ontario — Legislative Assembly | 1,676,379 | 4,477 | 1974-03-05 → 2026-10-29 | en |
+| **Total** | **1,676,379** | | | |
 
 Example notebook for accessing the data: [`notebooks/accessing_the_data.ipynb`](notebooks/accessing_the_data.ipynb).
 
