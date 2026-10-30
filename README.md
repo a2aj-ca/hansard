@@ -155,7 +155,7 @@ re-crawling, call `runner.run_backfill_sittings(adapter, batch)` from Python
 (it isn't exposed on the CLI). It scans the stored snapshots for sibling links
 and fetches only the pages that are missing.
 
-See [docs/pipeline.md §3a](docs/pipeline.md).
+See [docs/architecture.md §3a](docs/architecture.md).
 
 ## MongoDB collections
 
@@ -183,7 +183,7 @@ or a procedural note) and has the following fields:
 | `Intervention`      | `Mr. Speaker, I would like ...`   | The actual text of the intervention. For divisions, the voters' names joined with `; `. |
 | `vote_direction`    | `aye`, `nay` on division rows     | Which side of a recorded vote (division) the row records. |
 | `vote_count`        | 18                                | Count printed on the division marker, if any. |
-| `voters`            | `Beer; Bradley; Brown; ...`       | list of voter names on division rows, `[]` otherwise. |
+| `voters`            | `Beer; Bradley; Brown; ...`       | Voter names on division rows, joined with `; ` in the Parquet export (a list in MongoDB); empty otherwise. |
 | `source_url`        | `https://www.ola.org/.../hansard` | The day-page URL this row came from (added by the runner). |
 | `upstream_license`  | (license string)                  | Upstream attribution and restriction notice for the source. |
 
@@ -219,7 +219,7 @@ docs/
 
 Subclass `HansardAdapter` in a new file under `pipeline/adapters/`, implement
 `discover()` / `parse()` (and optionally `extract_pdf_links()`), and register the
-class in `pipeline/adapters/registry.py`. See `docs/pipeline.md` §5.
+class in `pipeline/adapters/registry.py`. See `docs/architecture.md` §5.
 
 ## Licensing Information
 

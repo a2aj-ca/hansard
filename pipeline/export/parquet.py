@@ -50,6 +50,8 @@ def export_jurisdiction(jurisdiction: str) -> Path:
         for doc in cursor:
             for c in COLUMNS:
                 v = doc.get(c)
+                if isinstance(v, list):
+                    v = "; ".join(str(x) for x in v) or None
                 batch[c].append(None if v is None else str(v))
             n += 1
             if len(batch[COLUMNS[0]]) >= BATCH_SIZE:

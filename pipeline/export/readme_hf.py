@@ -27,16 +27,20 @@ JURISDICTION_PROSE = {
 
 # One row per Parquet column, in order, with type + description for the card.
 FIELD_DOCS = [
-    ("ID", "string", "Stable per-row identifier (sitting date + sequence number)."),
+    ("ID", "string", "Stable per-row identifier (`YYYYMMDD` + sitting letter + sequence number, e.g. `20240321A-0000042`)."),
     ("Date", "string", "Sitting date (YYYY-MM-DD)."),
+    ("sitting", "string", "Which sitting of that date the row comes from: `A` for the first, `B` for the second (e.g. an evening sitting), and so on."),
     ("jurisdiction", "string", "Which legislature (e.g. `ontario`)."),
     ("chamber", "string", "Chamber within the legislature (e.g. `legislative_assembly`)."),
     ("language", "string", "Language of the source page (e.g. `en`)."),
     ("OrderofBusiness", "string", "High-level section heading (the order of business)."),
     ("SubjectofBusiness", "string", "Specific topic / matter within the order of business."),
-    ("PersonSpeaking", "string", "Speaker label, or empty for procedural rows."),
-    ("intervention_type", "string", "`speech` (a speaker turn) or `procedural` (a procedural note)."),
-    ("Intervention", "string", "The text of the intervention."),
+    ("PersonSpeaking", "string", "Speaker label, or empty for procedural and division rows."),
+    ("intervention_type", "string", "`speech` (a speaker turn), `procedural` (a procedural note), or `division` (one side of a recorded vote)."),
+    ("Intervention", "string", "The text of the intervention. For division rows, the voters' names joined with `; `."),
+    ("vote_direction", "string", "On division rows, `aye` or `nay`; empty otherwise."),
+    ("vote_count", "string", "On division rows, the count printed on the division marker, if any; empty when not printed (use the number of names in `voters`)."),
+    ("voters", "string", "On division rows, the voters' names joined with `; `; empty otherwise."),
     ("upstream_license", "string", "License / attribution terms from the source legislature."),
     ("source_url", "string", "The day-page URL this row was parsed from."),
 ]
@@ -161,7 +165,7 @@ def _fields_section() -> str:
     lines = [
         "## Data Fields",
         "",
-        "One row per intervention (a speaker turn or a procedural note).",
+        "One row per intervention (a speaker turn, a procedural note, or one side of a recorded division).",
         "",
         "| Field | Type | Description |",
         "|---|---|---|",
@@ -170,7 +174,7 @@ def _fields_section() -> str:
     lines += [
         "",
         "Missing values are represented as empty strings or nulls; in particular "
-        "`PersonSpeaking` is empty for procedural rows.",
+        "`PersonSpeaking` is empty for procedural and division rows.",
     ]
     return "\n".join(lines)
 

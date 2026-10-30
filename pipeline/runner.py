@@ -34,7 +34,7 @@ def _fetch_days(
     while queue:
         day = queue.popleft()
         done += 1
-        sleep(1, 2)
+        sleep()
         logger.info("(%d/%d) Fetch day: %s", done, len(seen), day.url)
         dr = fetch(day.url, proxies=proxies)
         if not dr.ok or not dr.content:
