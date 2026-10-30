@@ -28,7 +28,7 @@ def main(argv: list[str] | None = None) -> int:
         "--stage",
         choices=["all", "fetch", "parse"],
         default="all",
-        help="Which pipeline stage to run (default: all).",
+        help=("Which pipeline stage to run (default: all)."),
     )
     # Discovery strategy: full history, only new recent days, or re-fetch recent days.
     parser.add_argument(
@@ -50,6 +50,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--batch", default="default", help="Batch label stored on each snapshot.")
     # Skip PDF downloads (HTML snapshots only).
     parser.add_argument("--no-pdfs", action="store_true", help="Skip PDF downloads.")
+    # Incremental mode: how many of the newest known days to re-fetch anyway, so a late-published evening sitting isn't skipped along with its day page.
+    parser.add_argument("--recheck", type=int, default=14,help="Incremental mode: re-fetch the N newest known day pages to catch late-added sittings (default: 14, 0 to disable).")
 
     args = parser.parse_args(argv)
 
@@ -75,6 +77,7 @@ def main(argv: list[str] | None = None) -> int:
         mode=args.mode,
         download_pdfs=not args.no_pdfs,
         since=args.since,
+        recheck=args.recheck,
         )
     return 0
 

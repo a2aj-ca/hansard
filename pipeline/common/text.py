@@ -10,12 +10,12 @@ def clean_text(s: str) -> str:
     return re.sub(r"\s+", " ", s or "").strip()
 
 
-# generate a unique ID for each row based on date and sequence number
-def make_id(d: Optional[str], n: int) -> Optional[str]:
+# generate a unique ID for each row based on date, sitting and sequence number.
+def make_id(d: Optional[str], n: int, sitting: Optional[str] = None) -> Optional[str]:
     if not d:
         return None
     ymd = d.replace("-", "")
-    return f"{ymd}-{n:07d}"
+    return f"{ymd}{sitting or ''}-{n:07d}"
 
 # Replace invalid characters with underscores
 def safe_filename(s: str) -> str:

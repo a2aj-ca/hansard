@@ -29,3 +29,7 @@ class HansardAdapter(ABC):
     def extract_pdf_links(self, html: bytes, day_url: str) -> List[str]:
         """Optional: extract PDF links for a given day page. Default: none."""
         return []
+
+    def extract_related_day_urls(self, html: bytes, day_url: str) -> List[str]:
+        """Optional: other sittings of the same calendar day, linked from this page."""
+        return []

@@ -1,4 +1,4 @@
-# Ontario Hansard Scraper and Parser
+# Hansard Scraper and Parser
 
 <!-- COVERAGE:START -->
 ## Dataset
@@ -24,8 +24,6 @@ stores the raw HTML in MongoDB, and parses it into structured intervention rows
 (one row per speaker turn or procedural note). Only the **Legislative Assembly
 of Ontario** is implemented today, but the codebase is built around per-jurisdiction
 adapters so others can be added without touching the core.
-
-See [`docs/pipeline.md`](docs/pipeline.md) for the full design and the parsed-row schema.
 
 ## About
 
@@ -65,13 +63,15 @@ open, rights-enhancing legal tech ecosystem.
 
 ## Pipeline stages
 
-1. **Discover** — find the URLs of every Hansard "day page" to capture.
-2. **Fetch HTML** — download each day page and store its raw HTML.
+1. **Discover** — find the URLs of every Hansard "day page" to capture (all sessions, or only the most recent one).
+2. **Fetch HTML** — download each day page and store its raw HTML. Also finds any extra sittings held the same day
 3. **Fetch PDFs** — download the PDFs linked from each day page (optional).
 4. **Parse** — turn each HTML snapshot into structured intervention rows.
 
 Raw HTML, PDF metadata, and parsed rows all live in MongoDB, so re-parsing never
 requires re-downloading.
+
+
 
 ## Requirements
 
@@ -97,6 +97,7 @@ python -m pipeline ontario --since 2024-01-01                  # only days on or
 python -m pipeline ontario --stage=fetch --mode=incremental    # only new days, fetch only
 python -m pipeline ontario --stage=parse                       # parse unparsed snapshots only
 python -m pipeline ontario --no-pdfs                           # skip PDF downloads
+python -m pipeline ontario --mode=incremental --recheck=0      # don't re-fetch recent days
 ```
 
 | Flag        | Values                          | Default   | Purpose |
@@ -108,6 +109,7 @@ python -m pipeline ontario --no-pdfs                           # skip PDF downlo
 | `--since`   | `YYYY-MM-DD`                     | (none)    | Only fetch days on or after this date. |
 | `--batch`   | string                          | `default` | Label stamped onto each saved snapshot. |
 | `--no-pdfs` | —                               | off       | Skip PDF downloads. |
+| `--recheck` | `14` | Incremental only: re-fetch the N newest known days so a late-published second sitting isn't missed. `0` disables. |
 
 ### Modes
 
@@ -141,11 +143,25 @@ default MongoDB database `hansard` on localhost and makes direct (un-proxied) re
 | `REQUEST_DELAY_MIN`, `REQUEST_DELAY_JITTER` | `1.0`, `2.0`                 | Politeness delay between requests (waits min + random up to jitter seconds). |
 | `HTTP_TIMEOUT`, `HTTP_RETRIES`              | `30`, `4`                    | Per-request timeout (seconds) and retry count on errors / 429 / 5xx. |
 
+## Multiple sittings per day
+
+When the House sits twice in a day, Ontario publishes the second sitting at
+`.../<date>/hansard-1` ("vol. B"). It is linked only from the first sitting's
+page, not from the session index. The fetch stage follows these same-date links
+automatically. Each row records which sitting it came from (`sitting` = `A`, `B`, ...), and the sitting letter is part of the row `ID`.
+
+To recover second sittings missed by runs made before this change, without
+re-crawling, call `runner.run_backfill_sittings(adapter, batch)` from Python
+(it isn't exposed on the CLI). It scans the stored snapshots for sibling links
+and fetches only the pages that are missing.
+
+See [docs/pipeline.md §3a](docs/pipeline.md).
+
 ## MongoDB collections
 
 - `hansard-html-snapshots` — one document per day URL (raw HTML + fetch/parse status).
-- `hansard-pdf-metadata` — one document per downloaded PDF (metadata only).
-- `hansard-parsed-rows` — the canonical output, one document per intervention.
+- `hansard-pdf-metadata` — metadata for downloaded PDFs.
+- `hansard-parsed-rows` — parsed output, unique on `(source_url, ID)`.
 
 ### Parsed-row fields
 
@@ -154,18 +170,37 @@ or a procedural note) and has the following fields:
 
 | Field               | Example                           | Meaning |
 |---------------------|-----------------------------------|---------|
-| `ID`                | `2024-03-21__042`                 | Stable per-row identifier (date + sequence). |
+| `ID`                | `20240321A-0000042`                 | Stable per-row identifier ( `YYYYMMDD` + sitting letter + sequence). |
 | `Date`              | `2024-03-21`                      | Sitting date (YYYY-MM-DD). |
+| `sitting`           | `A`,  `B`                         | first, second or ... sitting of the date. |
 | `jurisdiction`      | `ontario`                         | Which legislature. |
 | `chamber`           | `legislative_assembly`            | Which chamber within the legislature. |
 | `language`          | `en`                              | Language of the source page. |
 | `OrderofBusiness`   | `STATEMENTS BY THE MINISTRY`      | High-level section heading. |
 | `SubjectofBusiness` | `ONTARIO TECHNOLOGY CENTRES`      | Specific topic within the section. |
-| `PersonSpeaking`    | `Hon. Mr. Walker`                 | Speaker label, or `null` for procedural rows. |
-| `intervention_type` | `speech` or `procedural`          | Whether the row is a speech or a procedural note. |
-| `Intervention`      | `Mr. Speaker, I would like ...`   | The actual text of the intervention. |
+| `PersonSpeaking`    | `Hon. Mr. Walker`                 | Speaker label, or `null` for procedural and division rows. |
+| `intervention_type` | `speech`, `procedural`, or `division`           | Whether the row is a speech, procedural or a division note. |
+| `Intervention`      | `Mr. Speaker, I would like ...`   | The actual text of the intervention. For divisions, the voters' names joined with `; `. |
+| `vote_direction`    | `aye`, `nay` on division rows     | Which side of a recorded vote (division) the row records. |
+| `vote_count`        | 18                                | Count printed on the division marker, if any. |
+| `voters`            | `Beer; Bradley; Brown; ...`       | list of voter names on division rows, `[]` otherwise. |
 | `source_url`        | `https://www.ola.org/.../hansard` | The day-page URL this row came from (added by the runner). |
 | `upstream_license`  | (license string)                  | Upstream attribution and restriction notice for the source. |
+
+**Known limitations**
+
+- `vote_count` is `None` whenever the count isn't printed on the marker line.
+  It is not computed from `len(voters)`, so consumers can tell "not printed"
+  from "printed". Use `len(voters)` when you need a number.
+- A combined tally line (`Ayes 52; nays 31.`, `Ayes, 46; nays 66.`) ends name collection
+  and becomes its own `procedural` row, but its counts aren't parsed into `vote_count`.
+- A paragraph consisting only of `Aye.` or `Nay.` matches the division-marker
+  pattern and would wrongly start a division. This hasn't come up in practice,
+  because members' spoken responses are printed with a speaker label
+  ("Some hon. members: Aye").
+- Divisions are only recognised in this layout. Votes reported only in prose
+  ("the motion was carried on the following division: ...") are not split into
+  names.
 
 ## Project structure
 
@@ -176,14 +211,15 @@ pipeline/
 ├── common/              # shared HTTP, MongoDB, schema, text, logging helpers
 └── adapters/            # one module per jurisdiction (base, registry, ontario)
 docs/
-└── pipeline.md          # full design documentation
+├── architecture.md      # full design documentation
+├── ontario-parsing.md   # parsing logic specefic to Ontario Hansard
 ```
 
 ## Adding a jurisdiction
 
 Subclass `HansardAdapter` in a new file under `pipeline/adapters/`, implement
 `discover()` / `parse()` (and optionally `extract_pdf_links()`), and register the
-class in `pipeline/adapters/registry.py`. See `docs/pipeline.md` §10.
+class in `pipeline/adapters/registry.py`. See `docs/pipeline.md` §5.
 
 ## Licensing Information
 
