@@ -41,13 +41,18 @@ def _fetch_days(
             logger.warning("Failed day: %s", day.url)
             continue
 
-        for sibling in adapter.extract_related_day_urls(dr.content, day.url):
-            if sibling in seen:
-                continue
-            seen.add(sibling)
-            extra_found += 1
-            queue.append(DayPage(url=sibling, language=day.language))
-            logger.info("Found additional sitting: %s (via %s)", sibling, day.url)
+        siblings = [s for s in adapter.extract_related_day_urls(dr.content, day.url) if s not in seen]
+        if siblings:
+            # Skip sittings already stored: an evening page links back to its afternoon
+            # page, which is normally in the db already and must not be re-queued.
+            already = existing_day_urls(siblings)
+            for sibling in siblings:
+                seen.add(sibling)
+                if sibling in already:
+                    continue
+                extra_found += 1
+                queue.append(DayPage(url=sibling, language=day.language))
+                logger.info("Found additional sitting: %s (via %s)", sibling, day.url)
 
         pdf_links = adapter.extract_pdf_links(dr.content, day.url) if download_pdfs else []
         save_day_html_snapshot(
